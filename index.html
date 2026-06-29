@@ -1,0 +1,1103 @@
+```html name=index.html
+<!doctype html>
+<!--
+  index.html
+  Premium Romantic Proposal Website (single-file)
+  - Mobile-first responsive
+  - Glassmorphism main card
+  - Animated background: gradient, hearts, sakura petals, stars, particles
+  - Typewriter text
+  - YES button: celebration (confetti, fireworks, hearts, roses)
+  - NO button: evasive, never clickable (works on mouse & touch)
+  - Confetti & fireworks use Canvas API
+  - Optional background music synthesized with WebAudio (user gesture required)
+  - No external libraries or assets
+  - Well-commented, optimized for GitHub Pages
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>🌸 A Little Question... 🤍</title>
+<style>
+  /* ========== Base / Mobile-first ========== */
+  :root{
+    --bg1:#ffd6e8;
+    --bg2:#ffeef8;
+    --bg3:#f8e8ff;
+    --glass-bg: rgba(255,255,255,0.18);
+    --glass-border: rgba(255,255,255,0.35);
+    --accent: #ff6fa3;
+    --accent-2: #d18bff;
+    --muted: rgba(255,255,255,0.6);
+    --card-width: min(92vw,720px);
+  }
+  *{box-sizing:border-box}
+  html,body{
+    height:100%;
+    margin:0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    background: linear-gradient(120deg,var(--bg1),var(--bg3) 40%,var(--bg2));
+    overflow:hidden;
+    touch-action: manipulation;
+  }
+
+  /* Fullscreen canvas layers */
+  canvas.bg, canvas.effects {
+    position:fixed;
+    left:0;top:0;
+    width:100vw;height:100vh;
+    pointer-events:none;
+    z-index:0;
+    display:block;
+  }
+
+  /* decorative layers for floating emojis and particles */
+  .decor {
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:1;
+    overflow:hidden;
+  }
+
+  /* subtle animated gradient overlay */
+  .gradient-overlay {
+    position:fixed;inset:0;z-index:0;mix-blend-mode:overlay;opacity:0.6;
+    background: radial-gradient(600px 600px at 10% 10%, rgba(255,255,255,0.08), transparent 10%),
+                radial-gradient(500px 500px at 90% 90%, rgba(209,139,255,0.06), transparent 12%);
+    animation: slowPan 12s linear infinite alternate;
+    pointer-events:none;
+  }
+  @keyframes slowPan { from{transform:translateY(-2%)} to{transform:translateY(2%)} }
+
+  /* Center container */
+  .wrap {
+    position:relative;
+    z-index:5;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:5vh 4vw;
+  }
+
+  /* Glass card */
+  .card {
+    width:var(--card-width);
+    background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+    border-radius:20px;
+    padding:18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.08);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(10px) saturate(1.1);
+    -webkit-backdrop-filter: blur(10px) saturate(1.1);
+    color:#3a2340;
+    transform-origin:center;
+    transition: transform 400ms cubic-bezier(.2,.9,.25,1);
+  }
+
+  /* header */
+  .title {
+    font-size:1.15rem;
+    font-weight:700;
+    margin:6px 0 10px 0;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .subtitle {
+    color:var(--muted);
+    font-size:0.92rem;
+    margin-bottom:12px;
+  }
+
+  /* typing area */
+  .typewriter {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:12px;
+    padding:14px;
+    min-height:180px;
+    font-size:1rem;
+    line-height:1.5;
+    white-space:pre-wrap;
+    color:#2e1c2c;
+    position:relative;
+    overflow:hidden;
+  }
+  .cursor {
+    display:inline-block;
+    width:8px;height:18px;margin-left:4px;
+    background:linear-gradient(180deg,var(--accent),#ffb3d9);
+    border-radius:3px;
+    animation: blink 1s steps(1) infinite;
+    vertical-align:bottom;
+  }
+  @keyframes blink { 50%{opacity:0} }
+
+  /* buttons row */
+  .actions {
+    display:flex;
+    gap:12px;
+    margin-top:14px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+
+  .btn {
+    --pad:14px 22px;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding:var(--pad);
+    border-radius:12px;
+    font-weight:700;
+    font-size:1rem;
+    transition: transform 220ms cubic-bezier(.2,.9,.25,1), box-shadow 220ms;
+    box-shadow: 0 6px 18px rgba(145,70,120,0.12);
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    user-select:none;
+    -webkit-user-select:none;
+    touch-action:none;
+  }
+
+  .btn:active{ transform:translateY(2px) }
+
+  /* YES button */
+  .yes {
+    background: linear-gradient(135deg,var(--accent),#ff9ac9);
+    color:white;
+    padding:16px 28px;
+    font-size:1.05rem;
+    box-shadow: 0 12px 30px rgba(255,105,160,0.18);
+  }
+  .yes .heart {
+    font-size:1.15rem;
+  }
+
+  /* NO button (evasive) */
+  .no {
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+    color:var(--accent);
+    border: 1px solid rgba(255,111,153,0.18);
+    backdrop-filter: blur(6px);
+    padding:12px 18px;
+    font-weight:800;
+    transform-origin:center;
+  }
+
+  /* small control buttons (music) */
+  .controls {
+    position:fixed;
+    right:16px;
+    bottom:16px;
+    z-index:10;
+    display:flex;
+    gap:10px;
+  }
+  .control-btn {
+    background: rgba(255,255,255,0.14);
+    border-radius:999px;
+    width:56px;height:56px;
+    display:flex;align-items:center;justify-content:center;
+    border:1px solid rgba(255,255,255,0.28);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    cursor:pointer;
+    backdrop-filter: blur(6px);
+  }
+
+  .mute-indicator {
+    font-size:0.78rem;color:var(--muted);
+    position:absolute;right:76px;bottom:22px;
+    background:rgba(255,255,255,0.06);padding:6px 10px;border-radius:10px;
+    border:1px solid rgba(255,255,255,0.05);
+    display:none;
+  }
+
+  /* celebration overlay */
+  .celebrate {
+    position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+    pointer-events:none;
+  }
+  .celebrate .message {
+    position:relative;z-index:21;padding:24px 30px;border-radius:18px;
+    background:linear-gradient(180deg,rgba(255,255,255,0.14),rgba(255,255,255,0.08));
+    border:1px solid rgba(255,255,255,0.2);
+    backdrop-filter: blur(12px);
+    text-align:center;color:#fff;
+    box-shadow:0 20px 50px rgba(120,30,80,0.25);
+    transform:translateY(-10px);
+  }
+  .celebrate h1{ margin:0 0 8px;font-size:1.5rem; }
+  .celebrate p{ margin:0;font-size:1rem; opacity:0.95 }
+
+  /* floating text small */
+  .small {
+    font-size:0.9rem;color:rgba(255,255,255,0.92);
+  }
+
+  /* bounce after NO landing */
+  @keyframes bounce {
+    0%{transform:translateY(0)}
+    30%{transform:translateY(-10px)}
+    50%{transform:translateY(0)}
+    70%{transform:translateY(-4px)}
+    100%{transform:translateY(0)}
+  }
+
+  /* Floating petals/hearts styling via classed elements */
+  .floating-emoji {
+    position:absolute;
+    will-change:transform,opacity;
+    font-size:20px;
+    pointer-events:none;
+    filter: drop-shadow(0 6px 8px rgba(0,0,0,0.08));
+  }
+
+  /* responsive: larger screens */
+  @media(min-width:900px){
+    .title{font-size:1.35rem}
+    .typewriter{min-height:220px;font-size:1.05rem}
+    .card{padding:26px;border-radius:26px}
+    .yes{font-size:1.15rem;padding:16px 34px}
+  }
+</style>
+</head>
+<body>
+  <!-- Background canvas layers -->
+  <canvas class="bg" id="bgCanvas" aria-hidden="true"></canvas>
+  <canvas class="effects" id="effectsCanvas" aria-hidden="true"></canvas>
+
+  <!-- Decorative DOM container for petals/hearts/stars (for CSS animations & emoji elements) -->
+  <div class="decor" id="decor"></div>
+  <div class="gradient-overlay" aria-hidden="true"></div>
+
+  <!-- Main content -->
+  <div class="wrap" role="main">
+    <section class="card" id="card" aria-labelledby="proposal-title">
+      <div class="title" id="proposal-title">
+        <span>🌸</span>
+        <span>A Little Question... 🤍</span>
+      </div>
+      <div class="subtitle small">A genuine heart, no pressure — just a moment.</div>
+
+      <div class="typewriter" id="typewriter" aria-live="polite" aria-atomic="true" tabindex="0">
+        <!-- Text filled by JS typewriter -->
+        <span id="typedText"></span><span class="cursor" id="cursor"></span>
+      </div>
+
+      <div class="actions">
+        <button class="btn yes" id="yesBtn" aria-label="Yes, I will">
+          <span class="heart">❤️</span> YES
+        </button>
+        <button class="btn no" id="noBtn" aria-label="No, I decline" aria-disabled="true" tabindex="-1">
+          🙈 NO
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Controls: music mute/unmute -->
+  <div class="controls" aria-hidden="false">
+    <button class="control-btn" id="musicBtn" title="Toggle music" aria-pressed="false">
+      🎶
+    </button>
+    <div class="mute-indicator" id="muteIndicator">Music off</div>
+  </div>
+
+  <!-- Celebration overlay -->
+  <div class="celebrate" id="celebrate" style="display:none;">
+    <div class="message" id="celebrateMessage">
+      <h1>💖 Yay!! You made me the happiest person! ❤️</h1>
+      <p>Thank you for making this moment unforgettable ❤️</p>
+    </div>
+  </div>
+
+<script>
+/* =========================
+   Romantic Proposal - Single File JS
+   - Handles typewriter
+   - Background animated canvas (particles, stars, sakura)
+   - NO button evasive behavior (mouse & touch)
+   - YES button celebration (confetti, fireworks, hearts, roses)
+   - WebAudio music synthesizer with mute/unmute
+   - Well-commented and modular
+   ========================= */
+
+(() => {
+  'use strict';
+
+  /* ---------- Configuration ---------- */
+  const TYPE_TEXT = [
+`I don't know where life is taking us,
+but I'd love to walk that journey with you.
+
+You make ordinary moments feel special,
+and every conversation with you leaves me smiling.
+
+So... can I ask you something?
+
+Will you be my girlfriend?
+
+No pressure.
+No rush.
+
+Just a genuine heart hoping for a chance with someone truly special.`
+  ];
+
+  // Proximity threshold for NO button (pixels)
+  const NO_PROXIMITY = 150;
+
+  // Canvas and particle systems
+  const bgCanvas = document.getElementById('bgCanvas');
+  const fxCanvas = document.getElementById('effectsCanvas');
+  const decor = document.getElementById('decor');
+  const typedTextEl = document.getElementById('typedText');
+  const cursorEl = document.getElementById('cursor');
+  const card = document.getElementById('card');
+  const yesBtn = document.getElementById('yesBtn');
+  const noBtn = document.getElementById('noBtn');
+  const celebrate = document.getElementById('celebrate');
+  const celebrateMessage = document.getElementById('celebrateMessage');
+  const musicBtn = document.getElementById('musicBtn');
+  const muteIndicator = document.getElementById('muteIndicator');
+
+  // Canvas contexts
+  let bgCtx, fxCtx;
+
+  // Resize canvases to dpr
+  function resizeCanvases() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    [bgCanvas, fxCanvas].forEach(c => {
+      c.width = innerWidth * dpr;
+      c.height = innerHeight * dpr;
+      c.style.width = innerWidth + 'px';
+      c.style.height = innerHeight + 'px';
+      const ctx = c.getContext('2d');
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    });
+    bgCtx = bgCanvas.getContext('2d');
+    fxCtx = fxCanvas.getContext('2d');
+  }
+  window.addEventListener('resize', resizeCanvases);
+  resizeCanvases();
+
+  /* ---------- Typewriter ---------- */
+  // Simulates realistic typing (variable speed, small pauses)
+  function startTypewriter(text, onComplete){
+    const target = text;
+    let i = 0;
+    typedTextEl.textContent = '';
+    cursorEl.style.display = 'inline-block';
+    let paused = false;
+
+    function step(){
+      if(i >= target.length){
+        cursorEl.style.display = 'none';
+        if(onComplete) onComplete();
+        return;
+      }
+      // Simulate human-like speed & pauses
+      const ch = target[i++];
+      typedTextEl.textContent += ch;
+      // longer pause after punctuation/new line
+      let delay = 32 + Math.random()*40;
+      if(ch === ',' ) delay += 120;
+      if(ch === '.' ) delay += 220;
+      if(ch === '\n') delay += 360;
+      // occasional thinking pause
+      if(Math.random() < 0.02) delay += 350 * Math.random();
+      setTimeout(step, delay);
+    }
+    setTimeout(step, 700);
+  }
+
+  /* ---------- Decorative floating elements (emoji) ---------- */
+  // Create floating sakura petals and hearts periodically
+  const MAX_DECOR = 36;
+  function spawnFloatingEmoji(kind){
+    const el = document.createElement('div');
+    el.className = 'floating-emoji';
+    el.style.zIndex = 2;
+    el.textContent = kind;
+    // random start x
+    const startX = Math.random()*innerWidth;
+    el.style.left = `${startX}px`;
+    el.style.top = `${-30 - Math.random()*40}px`;
+    const size = 14 + Math.random()*20;
+    el.style.fontSize = `${size}px`;
+    decor.appendChild(el);
+
+    // animate using requestAnimationFrame for smoothness
+    const dx = (-30 + Math.random()*60) / 240; // slight horizontal drift
+    const rotate = (Math.random() * 60 - 30);
+    const duration = 6000 + Math.random()*8000;
+    const start = performance.now();
+    function animate(now){
+      const t = (now - start) / duration;
+      if(t >= 1){
+        el.remove();
+        return;
+      }
+      // position & transform
+      const y = t * (innerHeight + 100);
+      const x = startX + Math.sin(t * Math.PI*2 + Math.random()) * 50 + dx * (now-start);
+      const op = 1 - Math.pow(t,0.8);
+      el.style.transform = `translate(${x-startX}px, ${y}px) rotate(${rotate * t}deg)`;
+      el.style.opacity = op;
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+  }
+
+  // burst spawners at intervals
+  setInterval(() => {
+    if(decor.children.length < MAX_DECOR) spawnFloatingEmoji('🌸');
+  }, 600);
+
+  setInterval(() => {
+    if(decor.children.length < MAX_DECOR) spawnFloatingEmoji('❤️');
+  }, 900);
+
+  /* ---------- Background canvas: gradient, stars, soft particles ---------- */
+  let particles = [];
+  function initBackgroundParticles(){
+    particles = [];
+    const count = Math.round((innerWidth * innerHeight) / 60000 * 20) + 30;
+    for(let i=0;i<count;i++){
+      particles.push({
+        x: Math.random()*innerWidth,
+        y: Math.random()*innerHeight,
+        r: 0.5 + Math.random()*2.2,
+        vx: (Math.random()-0.5)*0.1,
+        vy: (Math.random()-0.5)*0.1,
+        alpha: 0.2 + Math.random()*0.6,
+        hue: 320 + Math.random()*60
+      });
+    }
+  }
+  initBackgroundParticles();
+  window.addEventListener('resize', initBackgroundParticles);
+
+  // twinkling stars positions
+  const stars = [];
+  function initStars(){
+    stars.length = 0;
+    for(let i=0;i<60;i++){
+      stars.push({
+        x: Math.random()*innerWidth,
+        y: Math.random()*innerHeight,
+        r: 0.5 + Math.random()*1.8,
+        phase: Math.random()*Math.PI*2
+      });
+    }
+  }
+  initStars();
+  window.addEventListener('resize', initStars);
+
+  // animate background
+  let lastBg = performance.now();
+  function renderBackground(now){
+    const dt = now - lastBg;
+    lastBg = now;
+    // gradient base (subtle animated pink gradient)
+    const g = bgCtx.createLinearGradient(0,0,innerWidth,innerHeight);
+    g.addColorStop(0, '#ffd6e8');
+    g.addColorStop(0.5, '#f8e8ff');
+    g.addColorStop(1, '#fff1f6');
+    bgCtx.fillStyle = g;
+    bgCtx.fillRect(0,0,innerWidth,innerHeight);
+
+    // soft glowing particles
+    for(let p of particles){
+      p.x += p.vx * dt*0.06;
+      p.y += p.vy * dt*0.06;
+      if(p.x < -20) p.x = innerWidth+20;
+      if(p.x > innerWidth+20) p.x = -20;
+      if(p.y < -20) p.y = innerHeight+20;
+      if(p.y > innerHeight+20) p.y = -20;
+      bgCtx.beginPath();
+      const grad = bgCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r*10);
+      grad.addColorStop(0, `hsla(${p.hue}, 80%, 65%, ${0.28*p.alpha})`);
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      bgCtx.fillStyle = grad;
+      bgCtx.fillRect(p.x-p.r*6, p.y-p.r*6, p.r*12, p.r*12);
+    }
+
+    // twinkling stars
+    for(let s of stars){
+      s.phase += dt*0.002;
+      const a = 0.6 + Math.sin(s.phase)*0.4;
+      bgCtx.beginPath();
+      bgCtx.fillStyle = `rgba(255,255,255,${a})`;
+      bgCtx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      bgCtx.fill();
+    }
+
+    requestAnimationFrame(renderBackground);
+  }
+  requestAnimationFrame(renderBackground);
+
+  /* ---------- Canvas Effects: Confetti & Fireworks ---------- */
+  // We'll maintain multiple particle systems in fxCtx
+  const confettiPieces = [];
+  const fireworks = [];
+  const hearts = []; // little hearts for explosion/celebration
+
+  // Utility random
+  const rand = (a,b) => a + Math.random()*(b-a);
+
+  // Confetti piece
+  class Confetti {
+    constructor(x,y,dx,dy,color){
+      this.x = x; this.y = y;
+      this.vx = dx; this.vy = dy;
+      this.size = rand(6,13);
+      this.color = color;
+      this.angle = Math.random()*Math.PI*2;
+      this.spin = (Math.random()-0.5)*0.2;
+      this.life = 160 + Math.random()*80;
+    }
+    update(){
+      this.vy += 0.06; // gravity
+      this.x += this.vx;
+      this.y += this.vy;
+      this.angle += this.spin;
+      this.life--;
+      this.size *= 0.999;
+    }
+    draw(ctx){
+      ctx.save();
+      ctx.translate(this.x,this.y);
+      ctx.rotate(this.angle);
+      ctx.fillStyle = this.color;
+      ctx.fillRect(-this.size/2,-this.size/2,this.size,this.size*0.6);
+      ctx.restore();
+    }
+  }
+
+  // Firework - rocket + particles
+  class Firework {
+    constructor(sx,sy,tx,ty,color){
+      this.x = sx; this.y = sy; this.tx = tx; this.ty = ty;
+      this.vx = (tx-sx)/45;
+      this.vy = (ty-sy)/45;
+      this.life = 45;
+      this.color = color;
+      this.exploded = false;
+    }
+    update(){
+      if(this.life > 0){
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life--;
+      } else if(!this.exploded){
+        // explode into particles
+        const count = 30 + Math.round(Math.random()*30);
+        for(let i=0;i<count;i++){
+          const a = Math.random()*Math.PI*2;
+          const speed = rand(1,5);
+          fireworks.push(new FireParticle(this.x,this.y, Math.cos(a)*speed, Math.sin(a)*speed, this.color));
+        }
+        this.exploded = true;
+      }
+    }
+    draw(ctx){
+      if(!this.exploded){
+        ctx.beginPath();
+        ctx.fillStyle = this.color;
+        ctx.arc(this.x, this.y, 3, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+  }
+  class FireParticle {
+    constructor(x,y,vx,vy,color){
+      this.x=x; this.y=y; this.vx=vx; this.vy=vy;
+      this.color=color; this.life=80+Math.random()*60;
+    }
+    update(){
+      this.vy += 0.02; // gravity
+      this.vx *= 0.996;
+      this.vy *= 0.996;
+      this.x += this.vx;
+      this.y += this.vy;
+      this.life--;
+    }
+    draw(ctx){
+      ctx.beginPath();
+      ctx.fillStyle = this.color;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.arc(this.x, this.y, 2, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  }
+
+  // Heart particle used for celebration
+  class HeartParticle {
+    constructor(x,y,vx,vy,emoji,scale){
+      this.x=x; this.y=y; this.vx=vx; this.vy=vy;
+      this.emoji = emoji || '❤️';
+      this.life = 200 + Math.random()*200;
+      this.scale = scale || (0.8 + Math.random()*1.2);
+      this.rotation = Math.random()*360;
+    }
+    update(){
+      this.vy += 0.01;
+      this.x += this.vx;
+      this.y += this.vy;
+      this.rotation += 1;
+      this.life--;
+    }
+    draw(ctx){
+      // Draw emoji into canvas using fillText (good enough)
+      ctx.save();
+      ctx.translate(this.x,this.y);
+      ctx.rotate(this.rotation * Math.PI/180);
+      ctx.font = `${12*this.scale}px serif`;
+      ctx.fillText(this.emoji, 0, 0);
+      ctx.restore();
+    }
+  }
+
+  // FX animation loop
+  let lastFx = performance.now();
+  function renderFX(now){
+    const dt = now - lastFx;
+    lastFx = now;
+    fxCtx.clearRect(0,0,innerWidth,innerHeight);
+
+    // update confetti
+    for(let i = confettiPieces.length-1;i>=0;i--){
+      const p = confettiPieces[i];
+      p.update();
+      p.draw(fxCtx);
+      if(p.life <= 0 || p.y > innerHeight + 50) confettiPieces.splice(i,1);
+    }
+
+    // update fireworks (both rockets and particles)
+    for(let i=fireworks.length-1;i>=0;i--){
+      const f = fireworks[i];
+      f.update();
+      f.draw(fxCtx);
+      if(f instanceof FireParticle){
+        if(f.life <= 0 || f.y > innerHeight + 50) fireworks.splice(i,1);
+      } else if(f instanceof Firework){
+        if(f.exploded) fireworks.splice(i,1);
+      }
+    }
+
+    // update hearts
+    for(let i=hearts.length-1;i>=0;i--){
+      const h = hearts[i];
+      h.update();
+      h.draw(fxCtx);
+      if(h.life <= 0 || h.y > innerHeight + 100) hearts.splice(i,1);
+    }
+
+    requestAnimationFrame(renderFX);
+  }
+  requestAnimationFrame(renderFX);
+
+  // Helper: spawn confetti burst at x,y
+  function spawnConfetti(x,y,amount=80){
+    const colors = ['#ff9ac9','#ffd1e8','#d18bff','#ffc2c9','#fff1f6'];
+    for(let i=0;i<amount;i++){
+      const angle = Math.random()*Math.PI*2;
+      const speed = rand(2,8);
+      const dx = Math.cos(angle)*speed;
+      const dy = Math.sin(angle)*speed - rand(1,4);
+      const color = colors[Math.floor(Math.random()*colors.length)];
+      confettiPieces.push(new Confetti(x,y,dx,dy,color));
+    }
+  }
+
+  // Helper: spawn fireworks at random top-ish positions
+  function launchFirework(){
+    const sx = rand(innerWidth*0.2, innerWidth*0.8);
+    const sy = innerHeight + 20;
+    const tx = rand(innerWidth*0.1, innerWidth*0.9);
+    const ty = rand(innerHeight*0.12, innerHeight*0.45);
+    const hue = Math.floor(rand(300,360));
+    fireworks.push(new Firework(sx,sy,tx,ty, `hsl(${hue}deg 95% 65%)`));
+  }
+
+  // spawn heart/rose particles
+  function spawnHearts(x,y,count=14,emoji='❤️'){
+    for(let i=0;i<count;i++){
+      const a = Math.random()*Math.PI*2;
+      const speed = rand(0.8,3.5);
+      hearts.push(new HeartParticle(x,y, Math.cos(a)*speed, Math.sin(a)*speed - 1.5, emoji, 0.9 + Math.random()*1.2));
+    }
+  }
+
+  /* ---------- NO Button Evasive Behavior ---------- */
+  // Ensure button relocates before pointer/touch arrives.
+  function makeNoButtonEvasive(btn){
+    // initial style
+    btn.style.position = 'relative';
+    btn.style.transition = 'transform 360ms cubic-bezier(.18,.9,.27,1)';
+
+    // For positioning inside the card, we'll move via transform translate.
+    let current = {x:0,y:0}; // transform offsets
+    let busy = false;
+
+    // Compute button center
+    function getBtnCenter(){
+      const rect = btn.getBoundingClientRect();
+      return {x: rect.left + rect.width/2, y: rect.top + rect.height/2, w:rect.width, h:rect.height, rect};
+    }
+
+    // Move to a random position within the viewport (clamped)
+    function jumpAway(fromX, fromY){
+      if(busy) return;
+      busy = true;
+      const rect = btn.getBoundingClientRect();
+      const btnW = rect.width, btnH = rect.height;
+      // compute available area: card parent's bounding box or viewport
+      const parentRect = card.getBoundingClientRect();
+      // We'll position the button absolutely relative to the card by setting transform translate
+      // Find new center coordinates within card area but not off-screen
+      const minX = parentRect.left + btnW/2 + 8;
+      const maxX = parentRect.right - btnW/2 - 8;
+      const minY = parentRect.top + btnH/2 + 8;
+      const maxY = parentRect.bottom - btnH/2 - 8;
+
+      let newX = rand(minX, maxX);
+      let newY = rand(minY, maxY);
+
+      // If too close to the "from" position, nudge farther
+      const dx = newX - fromX, dy = newY - fromY;
+      if(Math.hypot(dx,dy) < NO_PROXIMITY/1.2){
+        newX += (dx>=0?1:-1)*(NO_PROXIMITY*0.8);
+        newY += (dy>=0?1:-1)*(NO_PROXIMITY*0.8);
+      }
+
+      // clamp
+      newX = Math.max(minX, Math.min(maxX, newX));
+      newY = Math.max(minY, Math.min(maxY, newY));
+
+      // compute transform
+      const cardRect = card.getBoundingClientRect();
+      const targetTx = newX - (rect.left + rect.width/2) + current.x;
+      const targetTy = newY - (rect.top + rect.height/2) + current.y;
+
+      const rot = rand(-35,35);
+      const scale = rand(0.95,1.08);
+
+      // animate using requestAnimationFrame for smoothness: apply transform and bounce after landing
+      btn.style.transition = 'transform 420ms cubic-bezier(.18,.9,.27,1)';
+      btn.style.transform = `translate(${current.x + targetTx}px, ${current.y + targetTy}px) rotate(${rot}deg) scale(${scale})`;
+      // after landed, do bounce
+      setTimeout(()=>{
+        btn.style.transition = 'transform 420ms cubic-bezier(.22,.6,.2,1)';
+        btn.style.transform = `translate(${current.x + targetTx}px, ${current.y + targetTy}px) rotate(${rot}deg) scale(${scale})`;
+        // small bounce via keyframes by toggling animation
+        btn.animate([
+          { transform: btn.style.transform },
+          { transform: `translate(${current.x + targetTx}px, ${current.y + targetTy - 14}px) rotate(${rot}deg) scale(${scale + 0.02})`},
+          { transform: btn.style.transform }
+        ], { duration: 560, easing: 'cubic-bezier(.2,.9,.25,1)' });
+        // settle state
+        current.x += targetTx;
+        current.y += targetTy;
+        // ensure within visually safe bounds by clamping current
+        busy = false;
+      }, 420);
+      // small heart spawn for fun
+      spawnHearts(newX, newY, 6, '🌹');
+    }
+
+    // On pointer move, check proximity
+    function onPointerMove(e){
+      const pX = e.clientX || (e.touches && e.touches[0] && e.touches[0].clientX) || 0;
+      const pY = e.clientY || (e.touches && e.touches[0] && e.touches[0].clientY) || 0;
+      const c = getBtnCenter();
+      const dist = Math.hypot(c.x - pX, c.y - pY);
+      if(dist < NO_PROXIMITY){
+        jumpAway(pX, pY);
+      }
+    }
+
+    // Also handle click attempts (prevent)
+    function onClick(e){
+      e.preventDefault();
+      e.stopPropagation();
+      // immediate escape
+      const pX = e.clientX || 0, pY = e.clientY || 0;
+      jumpAway(pX,pY);
+      // play tiny negative sound/feedback? we'll spawn a petal
+      spawnFloatingEmoji('🌸');
+    }
+
+    // Attach listeners globally for pointermove & touch
+    window.addEventListener('pointermove', onPointerMove, {passive:true});
+    window.addEventListener('touchstart', onPointerMove, {passive:true});
+    window.addEventListener('touchmove', onPointerMove, {passive:true});
+    btn.addEventListener('click', onClick, {passive:false});
+
+    // Accessibility: pressing Enter/Space should not "click" it
+    btn.addEventListener('keydown', (ev) => {
+      if(ev.key === 'Enter' || ev.key === ' '){
+        ev.preventDefault();
+        // play coy move
+        const c = getBtnCenter();
+        jumpAway(c.x + 10, c.y + 10);
+      }
+    });
+  }
+
+  makeNoButtonEvasive(noBtn);
+
+  /* ---------- YES Button - Celebration Flow ---------- */
+  let celebrationActive = false;
+  function onYesClicked(){
+    if(celebrationActive) return;
+    celebrationActive = true;
+    // Visual feedback: heart explosion from YES button
+    const rect = yesBtn.getBoundingClientRect();
+    const centerX = rect.left + rect.width/2;
+    const centerY = rect.top + rect.height/2;
+
+    // Card transform
+    card.style.transition = 'transform 700ms cubic-bezier(.2,.9,.25,1), opacity 500ms';
+    card.style.transform = 'scale(0.98) translateY(-6px)';
+    // spawn confetti, hearts, roses
+    spawnConfetti(centerX, centerY, 140);
+    spawnHearts(centerX, centerY, 28, '🌹');
+    spawnHearts(centerX, centerY, 18, '❤️');
+
+    // fireworks bursts
+    for(let i=0;i<4;i++){
+      setTimeout(launchFirework, i*420);
+    }
+
+    // Show celebration overlay after a short delay
+    setTimeout(()=> {
+      celebrate.style.display = 'flex';
+      celebrateMessage.style.opacity = 0;
+      celebrateMessage.style.transform = 'translateY(-10px) scale(.98)';
+      celebrateMessage.animate([
+        { opacity:0, transform:'translateY(-10px) scale(.98)'},
+        { opacity:1, transform:'translateY(0) scale(1)'}
+      ], { duration:600, easing:'cubic-bezier(.2,.9,.25,1)', fill:'forwards' });
+    }, 850);
+
+    // start continuous hearts rain & periodic fireworks
+    startFullCelebration();
+    // replace card content message (transform effect)
+    setTimeout(()=> {
+      typedTextEl.textContent = '';
+      cursorEl.style.display = 'none';
+      const msg = "💖 Yay!! You made me the happiest person! ❤️\n\nThank you for making this moment unforgettable ❤️";
+      typedTextEl.textContent = msg;
+      // enlarge card a bit
+      card.style.transform = 'scale(1.02) translateY(-8px)';
+    }, 1200);
+  }
+
+  yesBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    // small press animation
+    yesBtn.animate([
+      { transform: 'scale(1)' },
+      { transform: 'scale(.96)' },
+      { transform: 'scale(1.02)' },
+      { transform: 'scale(1)' }
+    ], { duration: 420, easing: 'cubic-bezier(.2,.9,.25,1)'});
+    onYesClicked();
+  });
+
+  /* ---------- Full Celebration: hearts rain + recurring fireworks + floating roses ---------- */
+  let celebrationInterval = null;
+  function startFullCelebration(){
+    // repeatedly spawn confetti, fireworks, hearts
+    function burst(){
+      const x = rand(innerWidth*0.1, innerWidth*0.9);
+      const y = rand(innerHeight*0.05, innerHeight*0.4);
+      spawnConfetti(x, y, 80);
+      launchFirework();
+      spawnHearts(x, y, 12, Math.random()>0.5?'🌹':'❤️');
+    }
+    // hearts rain continuously as DOM elements (for variety)
+    const rainInterval = setInterval(()=> {
+      spawnFloatingEmoji(Math.random()>0.6?'❤️':'🌹');
+    }, 220);
+
+    // trigger fireworks every ~2.1s
+    celebrationInterval = setInterval(()=>{
+      launchFirework();
+      spawnConfetti(rand(100, innerWidth-100), rand(50, innerHeight*0.45), 80);
+    }, 2100);
+
+    // stop after some minutes? We'll keep it running; user can close page
+    // store interval so we can clear if needed
+    // save rainInterval to effect arrays (not strictly necessary)
+    window._romance_rain = rainInterval;
+  }
+
+  /* ---------- Background Music (WebAudio) ---------- */
+  let audioCtx = null, masterGain = null, musicPlaying = false;
+  function initAudio(){
+    if(audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0;
+    masterGain.connect(audioCtx.destination);
+
+    // Create a dreamy chord loop using oscillators and a slow LFO for amplitude
+    const bpm = 60;
+    const bar = 60 / bpm * 4;
+    // simple sequence of frequencies (A, C#, E, B) relative...
+    const chordSeq = [
+      [440, 554.37, 659.25], // A major-ish
+      [392.00, 493.88, 622.25], // G major-ish
+      [349.23, 440.00, 523.25]  // F major-ish
+    ];
+
+    // Create a scheduled loop using setInterval (simple)
+    function playChord(frequencies, length){
+      const now = audioCtx.currentTime;
+      const localGain = audioCtx.createGain();
+      localGain.gain.value = 0;
+      localGain.connect(masterGain);
+
+      // gentle attack & release envelope
+      localGain.gain.linearRampToValueAtTime(0.0001 + 0.25, now + 0.02);
+      localGain.gain.exponentialRampToValueAtTime(0.0001, now + length);
+
+      // add for each frequency an oscillator with slight detune & lowpass
+      frequencies.forEach((f, idx) => {
+        const osc = audioCtx.createOscillator();
+        const type = ['sine','sine','triangle'][idx%3];
+        osc.type = type;
+        osc.frequency.value = f * (1 + (Math.random()-0.5)*0.0025);
+        // vibrato
+        const lfo = audioCtx.createOscillator();
+        lfo.frequency.value = 5 + Math.random()*2;
+        const lfoGain = audioCtx.createGain();
+        lfoGain.gain.value = 2.2 + Math.random()*1.2;
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc.frequency);
+        lfo.start();
+
+        // filter
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 1200;
+        osc.connect(filter);
+        filter.connect(localGain);
+        osc.start(now);
+        osc.stop(now + length + 0.1);
+      });
+      // end: localGain will drop gracefully
+      setTimeout(()=> { localGain.disconnect(); }, (length+0.2)*1000);
+    }
+
+    // loop driver
+    let idx = 0;
+    const loop = () => {
+      if(!musicPlaying) return;
+      const freqs = chordSeq[idx % chordSeq.length];
+      playChord(freqs, bar * (0.9 + Math.random()*0.2));
+      idx++;
+      // schedule next
+      setTimeout(loop, bar*1000);
+    };
+    // expose start function
+    audioCtx._startLoop = loop;
+  }
+
+  // Toggle music
+  musicBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if(!audioCtx) initAudio();
+    if(audioCtx.state === 'suspended'){
+      // user gesture resumes audio
+      await audioCtx.resume();
+    }
+    musicPlaying = !musicPlaying;
+    if(musicPlaying){
+      masterGain.gain.linearRampToValueAtTime(0.85, audioCtx.currentTime + 0.6);
+      audioCtx._startLoop();
+      musicBtn.setAttribute('aria-pressed', 'true');
+      muteIndicator.style.display = 'block';
+      muteIndicator.textContent = 'Music on';
+      setTimeout(()=> muteIndicator.style.display = 'none', 1200);
+    } else {
+      masterGain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.6);
+      musicBtn.setAttribute('aria-pressed', 'false');
+      muteIndicator.style.display = 'block';
+      muteIndicator.textContent = 'Music off';
+      setTimeout(()=> muteIndicator.style.display = 'none', 1200);
+    }
+  });
+
+  /* ---------- Initial startup ---------- */
+  // start typewriter
+  startTypewriter(TYPE_TEXT.join('\n\n'), ()=> {
+    // blink cursor briefly
+    setTimeout(()=> { cursorEl.style.display = 'none'; }, 200);
+  });
+
+  /* ---------- Accessibility & Keyboard: allow 'Y' as yes ---------- */
+  window.addEventListener('keydown', (e)=>{
+    if(e.key.toLowerCase() === 'y'){
+      yesBtn.click();
+    }
+    if(e.key.toLowerCase() === 'n'){
+      // pressing N triggers no button move
+      noBtn.focus();
+      noBtn.click();
+    }
+  });
+
+  /* ---------- Light interaction: clicking card spawns petals ---------- */
+  card.addEventListener('pointerdown', (e) => {
+    spawnFloatingEmoji('🌸');
+  });
+
+  /* ---------- Start ambient small spawns (hearts/petals) ---------- */
+  setInterval(()=> {
+    if(Math.random()<0.6) spawnFloatingEmoji('🌸');
+    else spawnFloatingEmoji('✨');
+  }, 900);
+
+  /* ---------- Periodic subtle fireworks (background) ---------- */
+  setInterval(()=> {
+    // only occasional
+    if(Math.random() < 0.12) {
+      launchFirework();
+    }
+  }, 1400);
+
+  /* ---------- Make sure touch events on NO button also trigger escape ---------- */
+  // already handled via global touchstart/touchmove
+
+  /* ---------- Prevent accidental form submissions / selection ---------- */
+  document.addEventListener('touchmove', (e) => { /* keep passive for performance */ }, {passive:true});
+
+  /* ---------- Polishing: ensure canvases redraw on visibility changes ---------- */
+  document.addEventListener('visibilitychange', () => {
+    if(!document.hidden) {
+      lastBg = performance.now();
+      lastFx = performance.now();
+    }
+  });
+
+  /* ========== Notes / compatibility ==========
+     - All features implemented without external assets.
+     - Uses WebAudio which requires user gesture to start on some browsers.
+     - Emojis used for roses/hearts/petals for cross-platform lightweight visuals.
+     - Optimized for 60fps by limiting particle counts, using requestAnimationFrame, and capping DPR to 2.
+     ============================================ */
+})();
+</script>
+</body>
+</html>
+```
